@@ -1,0 +1,8 @@
+$('#ad_<%= @ad.id %>').parent('.ad').fadeOut().remove();
+if($('.ads_list .ad').length == 0) {
+  $('#no_ads').removeClass('hidden');
+}
+UnobtrusiveFlash.showFlashMessage("<%= j t('messages.destroy') %>", {type: 'info'});
+demoAreas.forEach(function(demoArea) {
+  demoArea.refreshAdsList()
+});

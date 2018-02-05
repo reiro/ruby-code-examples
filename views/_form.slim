@@ -1,0 +1,172 @@
+- url = @ad.new_record? ? path(:campaign_ad_unit_ads, @campaign, @ad_unit) : path(:campaign_ad_unit_ad, @campaign, @ad_unit, @ad)
+= bootstrap_form_for([@campaign, @ad_unit, @ad],
+        url: url,
+        html: { multipart: true },
+        data: { content_type: @ad_unit.content_type },
+        remote: true) do |f|
+  .form-floating
+    .card-content.white
+      fieldset
+        = f.text_field :destination_url, append: "<i class='validation-icon'></i>".html_safe + question_icon(t('.destination_url_hint')),
+                help: t('.destination_url_help')
+        = f.text_field :impression_tracker, append: "<i class='fetching-icon'></i>".html_safe + question_icon(t('.impression_tracker_hint')),
+                help: t('.impression_tracker_help')
+        - if @ad_unit.carousel_overlay?
+          .form-group
+            .question-icon = question_icon(t('.has_title_hint'))
+            = f.check_box :has_title, label: t('.add_title_message'), checked: @ad.new_record? ? true : @ad.has_title
+        = f.text_field :title, append: "<i class='fetching-icon'></i>".html_safe + question_icon(t('.title_hint')),
+                help: t('.title_help_message')
+        .form-group
+          .question-icon = question_icon(t('.has_description_hint'))
+          - should_have_description = @ad.should_have_description?
+          = f.check_box :has_description, label: t('.add_description_message'), checked: should_have_description || @ad.has_description, disabled: should_have_description
+        - if @ad_unit.scroll_type?
+          = f.cktext_area :description, append: "<i class='fetching-icon'></i>".html_safe + question_icon(t('.description_hint')),
+                help: t('.description_help_message')
+        - else
+          = f.text_field :description, append: "<i class='fetching-icon'></i>".html_safe + question_icon(t('.description_hint')),
+                help: t('.description_help_message')
+        .form-group
+          .question-icon = question_icon(t('.has_action_hint'))
+          - should_have_action = @ad.should_have_action?
+          = f.check_box :has_action, label: t('.add_action_message'), checked: should_have_action || @ad.has_action, disabled: should_have_action
+        = f.text_field :action_text, append: "<i class='fetching-icon'></i>".html_safe  + question_icon(t('.action_text_hint')),
+              help: t('.action_text_help_message')
+        .row
+          .col-sm-8
+            = f.color_field :button_color, help: t('.choose_action_color')
+          .col-sm-4
+            .form-group.filled
+              = select_tag :default_color, options_for_select(Ad::BUTTON_COLORS.keys.collect {|c| [c, Ad::BUTTON_COLORS[c]]}),
+                      :include_blank => 'select color', class: 'form-control'
+        .question-icon = question_icon(t('.default_hint'))
+        = f.check_box :default, label: t('.add_default_message')
+        .question-icon = question_icon(t('.status_hint'))
+        = f.select :status, ad_statuses.collect {|k| [ k.humanize, k ]}
+
+        - if can_include_like_share?(@ad_unit.content_type)
+          .question-icon = question_icon(t('.include_like_share_hint'))
+          = f.check_box :include_like_share, label: t('.include_like_share')
+
+        - if @ad_unit.carousel_overlay?
+          .question-icon = question_icon(t('.image_only_hint'))
+          = f.check_box :image_only, label: t('.check_image_only')
+          .question-icon = question_icon(t('.overlap_type_hint'))
+          = f.select :overlap_type, Ad.overlap_types.keys.collect { |k| [k.humanize, k] }
+
+        - if can_has_video?(@ad_unit.content_type)
+          .question-icon = question_icon(t('.content_type_hint'))
+          = f.select :content_type, Ad.content_types.keys.collect { |k| [k.humanize, k] }
+
+        #image_ad
+          .question-icon = question_icon(t('.upload_image_hint'))
+          .form-group.radio-images
+            .radio-inline
+              label.filled
+                input name='imageUploadSelector' type='radio' value='upload_image' checked='true'
+                = t('.upload_image_from_drive')
+            .radio-inline
+              label.filled
+                input name='imageUploadSelector' type='radio' value='fetch_image'
+                = t('.get_image_from_destination_url')
+
+          .ad-upload-image
+            .file-uploader.no-margin.media
+              .media-left
+                - @ad_unit.image_cropped_version_sizes.each do |size|
+                  - if @ad_unit.single_ad?
+                    .crop-size = "#{ad_image_title(size)}:"
+                  .image-preview class="#{@ad_unit.content_type}-size size_#{size}" style="background-image: url('#{image_preview(size)}')" data-content_size= size
+                    = image_tag image_preview(size), width: '100%' if @ad.image.url
+                    = circle_btn(title: 'Manual cropping Image', icon: 'md-aspect-ratio', klass: "grey darken-4 crop-image-button for-#{@ad_unit.content_type} size_#{size} hidden")
+
+              .media-body.media-bottom
+                = f.file_field :image,
+                  help: t('.image_help_message'), accept: 'image/*',
+                  data: { image_upload_preview: true,
+                  invalid_type_message: t('messages.invalid_image_format'),
+                  invalid_size_message: t('messages.invalid_image_size') }
+
+          .ad-fetch-image.hidden
+            .media
+              .media-left
+                - @ad_unit.image_cropped_version_sizes.each do |size|
+                  - if @ad_unit.single_ad?
+                    .crop-size = "#{ad_image_title(size)}:"
+                  .fetched-images.fetch-preview class="#{@ad_unit.content_type}-size size_#{size}" data-content_size= size
+              .media-body.media-middle.text-center
+                = link_to t('.fetch_images'), '#', class: 'btn btn-success btn-flat fetch-images-button',
+                  data: { fetching_message: t('.fetching_message_html'), fetch_again_message: t('.fetch_again_message') }
+
+          = f.hidden_field :remote_image_url
+          = f.hidden_field :image_cache
+
+          = f.hidden_field :x
+          = f.hidden_field :y
+          = f.hidden_field :width
+          = f.hidden_field :height
+
+        - if can_has_video?(@ad_unit.content_type)
+          #video_ad
+            = f.fields_for :video, @ad.video || Video.new do |video_form|
+              .question-icon = question_icon(t('.upload_image_hint'))
+              = video_form.form_group :video_type, class: 'filled ad_video_type' do
+                = video_form.check_box :autoplay, append: "<i class='fetching-icon'></i>".html_safe + question_icon(t('.title_hint')),
+                        help: 'not applicable for all ad exchanges.'
+                - t('activerecord.attributes.ad/video_types').map do |vt|
+                  .radio-inline style="#{'display:none' if hide_video_option?(vt[0])}"
+                    = video_form.radio_button :video_type, vt[0], label: vt[1], label_class: 'filled'
+
+              .ad-upload-video class="#{'hidden' unless @ad.video&.file?}"
+                .file-uploader.no-margin.media
+                  .media-left
+                  .media-body.media-bottom
+                    = video_form.file_field :video,
+                            accept: 'video/*', style: 'color:transparent;',
+                            data: { invalid_type_message: t('messages.invalid_video_format'),
+                                    invalid_size_message: t('messages.invalid_video_size'),
+                                    max_file_size: 100.megabytes }
+                    span#video-input-message
+                  span.help-block = t('.video_help_message')
+
+                - if @ad.video.present? && @ad.video.video.present?
+                  video class='js-player' controls="" poster="#{@ad.image.url}"
+                  source src="#{@ad.video.video}" type="video/mp4"
+
+              .ad-fetch-video class="#{'hidden' unless @ad.video&.youtube?}"
+                .media
+                  = video_form.text_field :link
+                .video_container
+                  - if @ad.video.present? && @ad.video.uid.present?
+                    = image_tag @ad.image.url, alt: @ad.video.title,
+                            class: 'yt_preview'
+                    .js-player style="display:none;"
+                      div data-type="youtube" data-video-id="#{@ad.video.uid}"
+                  - else
+                    = image_tag '', class: 'yt_preview'
+
+              .ad-fetch-infini-video class="#{'hidden' unless @ad.video&.infini?}"
+                .media
+                  = video_form.text_field :infini_link
+                .video_container
+                  - if @ad.video.present? && @ad.video.valid? && @ad.video.infini?
+                    - infini_link = @ad.video.full_infini_link
+                  - else
+                    - infini_link = ''
+                  iframe#infini-player allowfullscreen="true" width="298" height="167" frameBorder="0" src="#{infini_link}"
+
+              .ad-fetch-youku-video class="#{'hidden' unless @ad.video&.youku?}"
+                .media
+                  = video_form.text_field :youku_link
+                .video_container
+                  - if @ad.video.present? && @ad.video.valid? && @ad.video.youku?
+                    - youku_link = @ad.video.full_youku_link
+                  - else
+                    - youku_link = ''
+                  iframe#youku-player allowfullscreen="true" width="298" height="167" frameBorder="0" src="#{youku_link}"
+
+    .card-action.clearfix.white
+      .text-right
+        => link_to t('cancel'), '#', class: 'btn btn-default btn-link btn-cancel'
+        = f.primary

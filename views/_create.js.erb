@@ -1,0 +1,15 @@
+<% if has_errors? %>
+  $('#new_ad').replaceWith('<%= j render ad_form_template %>');
+  new Enzymic.Ads.AdFormHandler('new_ad');
+<% else %>
+  $('#link_to_create_new_ad').show();
+  $('#new_ad').remove();
+  $('.ads_list').append("<%= j render 'ads/ad', ad: @ad %>");
+  if($('.ads_list .ad').length > 0) {
+    $('#no_ads').addClass('hidden');
+  }
+  UnobtrusiveFlash.showFlashMessage("<%= j t('messages.create') %>", {type: 'info'});
+  demoAreas.forEach(function(demoArea) {
+    demoArea.refreshAdsList()
+  });
+<% end %>

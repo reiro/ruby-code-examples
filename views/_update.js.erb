@@ -1,0 +1,11 @@
+<% if has_errors? %>
+  $("#edit_ad_<%= @ad.id %>").replaceWith("<%= j render ad_form_template %>");
+  new Enzymic.Ads.AdFormHandler("<%= @ad.id %>");
+<% else %>
+  $("#edit_ad_<%= @ad.id %>").remove();
+  $("#ad_<%= @ad.id %>").parent().replaceWith("<%= j render 'ads/ad', ad: @ad %>");
+  UnobtrusiveFlash.showFlashMessage("<%= j t('messages.update') %>", {type: 'info'});
+  demoAreas.forEach(function(demoArea) {
+    demoArea.refreshAdsList()
+  });
+<% end %>

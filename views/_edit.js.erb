@@ -1,0 +1,2 @@
+$('#ad_<%= @ad.id %>').parent().append('<%= j render ad_form_template %>');
+new Enzymic.Ads.AdFormHandler('<%= @ad.id %>');

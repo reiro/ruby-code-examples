@@ -1,0 +1,113 @@
+wb = xlsx_package.workbook
+
+header_attrs = %w{id name total_impressions clicks CTR% swipe_total 5s_views 50%_views 100%_views total_leads likes email_shares wa_shares tw_shares in_shares}
+attr_names = %w{impressions clicks swipes 5s_views 50%_views 100%_views submits likes email_shares wa_shares tw_shares in_shares}
+
+@trend_analytics.each { |r| r[:ctr] = ctr_with_multiplier(r) }
+
+charts_rows_count = 80
+campaigns_count = @performance_analytics.count
+first_chart_index = campaigns_count + 9
+first_trend_index = first_chart_index - 1 + charts_rows_count
+last_trend_index = first_trend_index - 1 + @trend_analytics.count
+first_performance_index = last_trend_index + 1
+last_performance_index = first_performance_index + campaigns_count - 1
+first_video_index = last_performance_index + 1
+last_video_index = first_video_index + campaigns_count - 1
+
+params[:source] = 'ad_unit' if params[:source].empty?
+
+wb.add_worksheet(name: "#{@model}s Dashboard") do |sheet|
+  sheet.add_row ["Period", "Date from", "Date to", "By"]
+  sheet.add_row [params[:period_type], params[:date_from], params[:date_to], params[:source]]
+  sheet.add_row ["Overview Analytics"]
+  sheet.merge_cells "A3:C3"
+  sheet.add_row ['impressions', 'clicks', 'swipes']
+  sheet.add_row [@overview_analytics[:impressions], @overview_analytics[:clicks], @overview_analytics[:swipes]]
+  sheet.add_row
+
+  sheet.add_row header_attrs
+  @performance_analytics.each do |campaign|
+    name_method = campaign.is_a?(Ad) ? 'title' : 'name'
+    if params[:source] == 'ad_unit' && params[:controller] == "administrator/dashboard/ad_units"
+      values = [nil, nil]
+      ctr = (campaign[:clicks] / campaign[:impressions].to_f) * 100
+      values += attr_names.map { |field| campaign[field.to_sym] }.insert(2, ctr)
+      sheet.add_row values
+    else
+      values = [campaign.id, campaign.send(name_method)]
+      ctr = (campaign.analytics[:clicks] / campaign.analytics[:impressions].to_f) * 100
+      values += attr_names.map { |field| campaign.analytics[field.to_sym] }.insert(2, ctr)
+      sheet.add_row values
+    end
+  end
+
+  charts_rows_count.times { |n| sheet.add_row }
+
+  #Trend Chart
+  date_labels = trend_chart_labels(@trend_analytics)
+  ctr_values = values(@trend_analytics, :ctr)
+  impressions_values = values(@trend_analytics, :impressions)
+
+  @trend_analytics.count.times do |n|
+    sheet.add_row [date_labels[n], ctr_values[n], impressions_values[n]]
+  end
+
+  labels_data = sheet["A#{first_trend_index}:A#{last_trend_index}"]
+  ctr_data = sheet["B#{first_trend_index}:B#{last_trend_index}"]
+  impressions_data = sheet["C#{first_trend_index}:C#{last_trend_index}"]
+
+  #Performance Chart
+  performance_data = performance_chart_data(@performance_analytics, @model)
+  performance_labels = performance_data[:labels]
+  performance_ctr = performance_data[:datasets][0][:data]
+  performance_impressions = performance_data[:datasets][1][:data]
+
+  campaigns_count.times do |n|
+    sheet.add_row [performance_labels[n], performance_ctr[n], performance_impressions[0]]
+  end
+
+  performance_labels_data = sheet["A#{first_performance_index}:A#{last_performance_index}"]
+  performance_ctr_data = sheet["B#{first_performance_index}:B#{last_performance_index}"]
+  performance_impressions_data = sheet["C#{first_performance_index}:C#{last_performance_index}"]
+
+  #Video Chart
+  video_data = video_performance_chart_data(@performance_analytics, @model)
+  video_labels = video_data[:labels]
+  video_5s = video_data[:datasets][0][:data]
+  video_50 = video_data[:datasets][1][:data]
+  video_100 = video_data[:datasets][2][:data]
+
+  campaigns_count.times do |n|
+    sheet.add_row [video_labels[n], video_5s[n], video_50[n], video_100[n]]
+  end
+
+  video_labels_data = sheet["A#{first_video_index}:A#{last_video_index}"]
+  video_5s_data = sheet["B#{first_video_index}:B#{last_video_index}"]
+  video_50_data = sheet["C#{first_video_index}:C#{last_video_index}"]
+  video_100_data = sheet["D#{first_video_index}:D#{last_video_index}"]
+
+  sheet.add_chart(Axlsx::LineChart, start_at: "A#{first_chart_index}", end_at: "O#{first_chart_index + 15}", title: "CTR") do |chart|
+    chart.add_series data: ctr_data, labels: labels_data, title: "CTR%", color: "cc4748", show_marker: true
+    chart.catAxis.label_rotation = -45
+  end
+
+  sheet.add_chart(Axlsx::LineChart, start_at: "A#{first_chart_index + 16}", end_at: "O#{first_chart_index + 31}", title: "Impressions") do |chart|
+    chart.add_series data: impressions_data, labels: labels_data, title: "Impressions", color: "67b7dc", show_marker: true
+    chart.catAxis.label_rotation = -45
+  end
+
+  sheet.add_chart(Axlsx::LineChart, start_at: "A#{first_chart_index + 32}", end_at: "O#{first_chart_index + 47}", title: "CTR") do |chart|
+    chart.add_series data: performance_ctr_data, labels: performance_labels_data, title: "CTR%", color: "67b7dc", show_marker: true
+  end
+
+  sheet.add_chart(Axlsx::LineChart, start_at: "A#{first_chart_index + 48}", end_at: "O#{first_chart_index + 63}", title: "Impressions") do |chart|
+    chart.add_series data: performance_impressions_data, labels: performance_labels_data, title: "Impressions", color: "67b7dc", show_marker: true
+  end
+
+  sheet.add_chart(Axlsx::Bar3DChart, start_at: "A#{first_chart_index + 64}", end_at: "O#{first_chart_index + 79}", title: "Video Performance Chart") do |chart|
+    chart.add_series data: video_5s_data, labels: video_labels_data, title: "5s Views"
+    chart.add_series data: video_50_data, labels: video_labels_data, title: "50% Videws"
+    chart.add_series data: video_100_data, labels: video_labels_data, title: "100% Views"
+  end
+end

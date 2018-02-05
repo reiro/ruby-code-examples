@@ -1,0 +1,39 @@
+<!doctype html>
+<html ⚡>
+<head>
+  <meta charset="utf-8">
+  <script async src="https://cdn.ampproject.org/v0.js"></script>
+  <!-- ## Setup -->
+  <!-- Import the amp-youtube component -->
+  <script async custom-element="amp-carousel" src="https://cdn.ampproject.org/v0/amp-carousel-0.1.js"></script>
+  <script async custom-element="amp-analytics" src="https://cdn.ampproject.org/v0/amp-analytics-0.1.js"></script>
+  <% if @has_video %>
+    <script async custom-element="amp-youtube" src="https://cdn.ampproject.org/v0/amp-youtube-0.1.js"></script>
+  <% end %>
+  <link rel="canonical" href="https://ampbyexample.com/components/amp-youtube/">
+  <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1">
+  <style amp4ads-boilerplate>
+    body{visibility:hidden}
+  </style>
+  <%= render 'amp/styles/carousel' %>
+  </noscript>
+</head>
+<body>
+  <amp-analytics>
+    <%= render 'amp/scripts/analytics' %>
+  </amp-analytics>
+  <div id="list_ad_unit" class='<%= "size_#{@content_size}" %>'>
+    <amp-carousel class="carousel-ad" width='<%= "#{@width}" %>' height='<%= "#{@height}" %>' controls layout='<%= "#{@layout}" %>' type='<%= "#{@type}" %>' loop>
+      <% @ads.each_with_index do |ad, idx| %>
+        <% ad_type = ad.video? ? 'video_' : '' %>
+        <%= render "amp/ads/ad_#{ad_type}carousel", type: @ad_unit.content_type, ad: ad, idx: idx %>
+      <% end %>
+    </amp-carousel>
+    <div id="sponsored">
+      <%= @ad_unit.sponsored_label %>
+      <img src='<%= "#{@ad_unit.sponsored_logo.aws}" %>'>
+    </div>
+    <a id="enzymic" class="exit" href='<%= "#{network_click_macro(@ad_server, @enzymic_url)}" %>' target="_blank"></a>
+  </div>
+</body>
+</html>
